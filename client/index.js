@@ -1,6 +1,67 @@
 import "./index.scss";
+const EC = require('elliptic').ec;
+// todo: shouldn't need this
+const SHA256 = require('crypto-js/sha256');
+const ec = new EC('secp256k1');
 
 const server = "http://localhost:3042";
+
+function validateTransactionData(txtData) {
+  let errors = [];
+  if (!isValidPublicKey(txtData.sender))
+    errors.push("The sender address supplied is invalid.");
+  if (!isValidPublicKey(txtData.recipient))
+    errors.push("The recipient address supplied is invalid.");
+  return errors;
+}
+
+function isValidPublicKey(key) {
+  return key.length === 130;
+}
+
+function isValidPrivateKey(key) {
+  return key.length === 64;
+}
+
+function generateTransactionSignature(txData) {
+  let sig = null;
+  const privateKey = prompt("Please enter your private key to sign the transaction.");
+  if (privateKey !== null)
+  {
+    if (!isValidPrivateKey(privateKey)) {
+      alert("Invalid private key provided. Please try again!");
+    } else {
+      const key = ec.keyFromPrivate(privateKey);
+      var publicKeyFromPrivateKey = key.getPublic().encode('hex');
+      // should we be salting this? If so, how does the client safely know the salt?
+      // decided "no" because the private key is already unpredictable, not a common string
+      // therefore not vulnerable to a rainbow table
+      const msgHash = SHA256(txData);
+      sig = key.sign(msgHash.toString()); 
+    }
+  }
+  return sig;
+}
+
+function fetchBalances() {
+  let elemBalances = document.getElementById("balances");
+  fetch(`${server}/balances`, { headers: { 'Content-Type': 'application/json' }}).then(response => {
+    return response.json();
+  }).then(({ balances, moneySupply }) => {
+    document.getElementById("money-supply").innerText = moneySupply;
+    elemBalances.innerHTML = "";
+    for (const b in balances) {
+      var node = document.createElement("LI");
+      var keySpan = document.createElement("SPAN");
+      var balanceSpan = document.createElement("SPAN");
+      keySpan.appendChild(document.createTextNode(`${b}`));
+      balanceSpan.appendChild(document.createTextNode(`[${balances[b]}]`));
+      node.appendChild(keySpan);
+      node.appendChild(balanceSpan);
+      elemBalances.appendChild(node);
+    }
+  });  
+}
 
 document.getElementById("exchange-address").addEventListener('input', ({ target: {value} }) => {
   if(value === "") {
@@ -19,16 +80,37 @@ document.getElementById("transfer-amount").addEventListener('click', () => {
   const sender = document.getElementById("exchange-address").value;
   const amount = document.getElementById("send-amount").value;
   const recipient = document.getElementById("recipient").value;
-
-  const body = JSON.stringify({
+  // todo: could be a class, with a validate method
+  const txtData = {
     sender, amount, recipient
-  });
-
-  const request = new Request(`${server}/send`, { method: 'POST', body });
-
-  fetch(request, { headers: { 'Content-Type': 'application/json' }}).then(response => {
-    return response.json();
-  }).then(({ balance }) => {
-    document.getElementById("balance").innerHTML = balance;
-  });
+  };
+  var errors = validateTransactionData(txtData);
+  if (errors.length > 0) {
+    alert(`Transaction could not be sent [${errors.join("', ")}]`);
+  } else {
+    const transactionSignature = generateTransactionSignature(txtData);
+    if (transactionSignature !== null) {
+      const requestBody = {
+        txData: txtData,
+        signature: {
+          r: transactionSignature.r.toString(16),
+          s: transactionSignature.s.toString(16)
+        }
+      };
+      const request = new Request(`${server}/send`, { method: 'POST', body: JSON.stringify(requestBody) });
+      fetch(request, { headers: { 'Content-Type': 'application/json' }}).then(response => {
+        return response.json();
+      }).then(({ txIsValid, balance, errors }) => {
+        if (!txIsValid) {
+          alert(`Transaction was sent but was invalid! [${errors.join("', ")}]`);
+        } else {
+          alert("Transaction successful!");
+          document.getElementById("balance").innerHTML = balance;
+          fetchBalances();
+        }
+      });
+    }      
+  }
 });
+
+fetchBalances();

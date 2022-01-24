@@ -8,7 +8,7 @@
     <div class="components">
       <div class="wallet">
         <h1> Your Wallet </h1>
-        <input type="text" id="exchange-address" placeholder="Your Address" />
+        <div><input type="text" id="exchange-address" placeholder="Your exchange address"></div>
         <div id="balance">
           0
         </div>
@@ -22,6 +22,11 @@
           Transfer Amount
         </div>
       </div>
+    </div>
+    <div>
+      <h2>Exchange stats</h2>
+      <h3>Money supply <span id="money-supply"></h3>
+      <ul id="balances"></ul>
     </div>
   </body>
 </html>
