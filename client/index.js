@@ -8,22 +8,22 @@ const server = "http://localhost:3042";
 
 function validateTransactionData(txtData) {
   let errors = [];
-  if (!isValidPublicKey(txtData.sender))
+  if (!isValidServerId(txtData.sender))
     errors.push("The sender address supplied is invalid.");
-  if (!isValidPublicKey(txtData.recipient))
+  if (!isValidServerId(txtData.recipient))
     errors.push("The recipient address supplied is invalid.");
   return errors;
 }
 
-function isValidPublicKey(key) {
-  return key.length === 130;
+function isValidServerId(key) {
+  return key.length === 40;
 }
 
 function isValidPrivateKey(key) {
   return key.length === 64;
 }
 
-function generateTransactionSignature(txData) {
+function generateTransactionSignatureAndPublicKey(txData) {
   let sig = null;
   const privateKey = prompt("Please enter your private key to sign the transaction.");
   if (privateKey !== null)
@@ -40,7 +40,7 @@ function generateTransactionSignature(txData) {
       sig = key.sign(msgHash.toString()); 
     }
   }
-  return sig;
+  return { signature: sig, publicKey: publicKeyFromPrivateKey };
 }
 
 function fetchBalances() {
@@ -80,7 +80,8 @@ document.getElementById("transfer-amount").addEventListener('click', () => {
   const sender = document.getElementById("exchange-address").value;
   const amount = document.getElementById("send-amount").value;
   const recipient = document.getElementById("recipient").value;
-  // todo: could be a class, with a validate method
+  // todo: could be a class, with a validate method and better ways of 
+  // working with the amount as string/decimal
   const txtData = {
     sender, amount, recipient
   };
@@ -88,13 +89,14 @@ document.getElementById("transfer-amount").addEventListener('click', () => {
   if (errors.length > 0) {
     alert(`Transaction could not be sent [${errors.join("', ")}]`);
   } else {
-    const transactionSignature = generateTransactionSignature(txtData);
-    if (transactionSignature !== null) {
+    const transactionSignatureAndPublicKey = generateTransactionSignatureAndPublicKey(txtData);
+    if (transactionSignatureAndPublicKey !== null) {
       const requestBody = {
         txData: txtData,
+        publicKey: transactionSignatureAndPublicKey.publicKey,
         signature: {
-          r: transactionSignature.r.toString(16),
-          s: transactionSignature.s.toString(16)
+          r: transactionSignatureAndPublicKey.signature.r.toString(16),
+          s: transactionSignatureAndPublicKey.signature.s.toString(16)
         }
       };
       const request = new Request(`${server}/send`, { method: 'POST', body: JSON.stringify(requestBody) });

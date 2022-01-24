@@ -1,9 +1,5 @@
-Fix defect
-Stop taking the public key of the sender from the UI and calculate it 
-  client-side from the private key just before we send
-Use short exchange addresses
 Validate amount input client-side for consistency
 Show total amount in the exchange in the UI, and validate that we always have
   the same amount in the server
 Can we move code into a shared class, does that work?
-
+Try writing some tests for the server-side code.
