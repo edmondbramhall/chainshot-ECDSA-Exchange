@@ -1,3 +1,5 @@
+const fs = require('fs');
+const https = require('https');
 const express = require('express');
 // todo: shouldn't need two sha256 references I expect
 const { sha256 } = require("ethereum-cryptography/sha256");
@@ -5,7 +7,7 @@ const SHA256 = require('crypto-js/sha256');
 const EC = require('elliptic').ec;
 const app = express();
 const cors = require('cors');
-const port = 3042;
+const port = 3053;
 
 // localhost can have cross origin errors
 // depending on the browser you use!
@@ -69,6 +71,7 @@ app.get('/balance/:address', (req, res) => {
 });
 
 app.post('/send', (req, res) => {
+  console.log('in send');
   const errors = verifyTransaction(req.body.txData, req.body.signature, req.body.publicKey);  
   const isValid = errors.length === 0;
   if (isValid) {
@@ -77,6 +80,12 @@ app.post('/send', (req, res) => {
   res.send({ txIsValid: isValid, errors: errors, balance: balances[req.body.txData.sender] });
 });
 
-app.listen(port, () => {
-  console.log(`Listening on port ${port}!`);
-});
+var privateKey = fs.readFileSync('./localhost-key.pem');
+var certificate = fs.readFileSync('./localhost.pem');
+
+https.createServer({
+    key: privateKey,
+    cert: certificate
+}, app).listen(port, () => {
+    console.log(`Listening on port ${port}!`);
+  });
