@@ -4,7 +4,7 @@ const EC = require('elliptic').ec;
 const SHA256 = require('crypto-js/sha256');
 const ec = new EC('secp256k1');
 
-const server = "http://localhost:3042";
+const server = "https://localhost:3053";
 
 function validateTransactionData(txtData) {
   let errors = [];
